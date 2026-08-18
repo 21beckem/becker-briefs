@@ -30,7 +30,6 @@ export class ScheduleType extends TypeDefinition {
    * @returns {string}
    */
   getIcon(typeInstance) {
-    console.log('geticon', typeInstance);
     assert.instanceOf(typeInstance, TypeInstance, 'typeInstance');
     return '\ud83d\udcc5';
   }

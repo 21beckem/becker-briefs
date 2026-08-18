@@ -156,7 +156,9 @@ export class BulletTreeOps {
       const previous = list[index - 1];
       if (!(previous instanceof Bullet)) return list;
       const target = list[index];
-      const mergedText = new RichText([...previous.text.runs, ...target.text.runs]);
+      const mergedText = RichText.fromObject({
+        runs: [...previous.text.runs, ...target.text.runs]
+      });
       const mergedPrevious = previous
         .withText(mergedText)
         .withChildren([...previous.children, ...target.children]);

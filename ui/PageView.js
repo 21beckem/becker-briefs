@@ -109,8 +109,10 @@ export class PageView {
     });
     this.#metaNode.appendChild(addTagButton);
 
-    this.#pageTagPicker = new TagPickerView(this.#tagRegistry, (tag) => {
-      this.#dispatchPageChanged('tag', (page) => page.withTagAdded(tag));
+    this.#pageTagPicker = TagPickerView.fromObject({
+      tagRegistry: this.#tagRegistry,
+      onPick: (tag) =>
+        this.#dispatchPageChanged('tag', (page) => page.withTagAdded(tag))
     });
     this.#pageTagPicker.node.classList.add('BRIEFS-page__tag-picker');
     this.#metaNode.appendChild(this.#pageTagPicker.node);
@@ -138,8 +140,10 @@ export class PageView {
   #renderPageTagChips() {
     this.#pageTagRow.textContent = '';
     for (const tag of this.#page.tags) {
-      const chip = new TagChipView(tag, (tagId) => {
-        this.#dispatchPageChanged('tag', (page) => page.withTagRemoved(tagId));
+      const chip = TagChipView.fromObject({
+        tag,
+        onRemove: (tagId) =>
+          this.#dispatchPageChanged('tag', (page) => page.withTagRemoved(tagId))
       });
       this.#pageTagRow.appendChild(chip.node);
     }
@@ -149,11 +153,15 @@ export class PageView {
     this.#contentNode.textContent = '';
     this.#blockViews = this.#page.content.map((block) => {
       if (block instanceof HeadingBlock) {
-        const view = new HeadingBlockView(block);
+        const view = HeadingBlockView.fromObject({ heading: heading });
         this.#contentNode.appendChild(view.node);
         return view;
       }
-      const view = new BulletView(block, this.#typeRegistry, this.#tagRegistry);
+      const view = BulletView.fromObject({
+        bullet: block,
+        typeRegistry: this.#typeRegistry,
+        tagRegistry: this.#tagRegistry
+      });
       this.#contentNode.appendChild(view.node);
       return view;
     });
@@ -199,5 +207,14 @@ export class PageView {
     this.#pageTagPicker.destroy();
     this.#blockViews.forEach((view) => view.destroy());
     this.#node.remove();
+  }
+
+  static fromObject(obj) {
+    assert.plainObject(obj, 'obj');
+    return new PageView(
+      obj.page,
+      obj.typeRegistry,
+      obj.tagRegistry,
+    )
   }
 }

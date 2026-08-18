@@ -86,4 +86,12 @@ export class ModalView {
     if (this.#keydownHandler !== null) document.removeEventListener('keydown', this.#keydownHandler);
     this.#node.remove();
   }
+
+  static fromObject(obj) {
+    assert.plainObject(obj, 'obj');
+    return new ModalView(
+      obj.contentNode,
+      obj.onClose
+    )
+  }
 }

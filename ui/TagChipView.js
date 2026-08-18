@@ -61,4 +61,11 @@ export class TagChipView {
   destroy() {
     this.#node.remove();
   }
+
+  static fromObject(obj) {
+    assert.plainObject(obj, 'obj');
+    return new TagChipView(
+      obj.tag, obj.onRemove
+    )
+  }
 }

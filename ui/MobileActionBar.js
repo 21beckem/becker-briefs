@@ -31,14 +31,8 @@ export class MobileActionBar {
   #italicButton;
   #deleteButton;
 
-  constructor() {
+  constructor(navigator) {
     this.#node = this.#buildNode();
-
-    if ("virtualKeyboard" in navigator) {
-      navigator.virtualKeyboard.overlaysContent = true;
-    } else {
-      alert('no virtualKeyboard!');
-    }
   }
 
   get node() {
@@ -181,5 +175,12 @@ export class MobileActionBar {
 
   destroy() {
     this.#node.remove();
+  }
+
+  static fromObject(obj) {
+    assert.plainObject(obj, 'obj');
+    return new MobileActionBar(
+      obj.navigator
+    )
   }
 }

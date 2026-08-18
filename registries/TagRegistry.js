@@ -84,4 +84,13 @@ export class TagRegistry {
     this.#tags.set(created.id, created);
     return created;
   }
+
+  
+  static fromObject(obj) {
+    assert.plainObject(obj, 'obj');
+    return new TagRegistry(
+      obj.initialTags ?? [],
+      obj.onCreateTag
+    )
+  }
 }

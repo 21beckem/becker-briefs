@@ -29,7 +29,9 @@ export class RichText {
    */
   static plain(text) {
     assert.string(text, 'text');
-    return new RichText([new TextRun(text, false, false, null)]);
+    return RichText.fromObject({
+      runs: [TextRun.fromObject({ text })]
+    });
   }
 
   /**
@@ -59,7 +61,8 @@ export class RichText {
    */
   static fromObject(obj) {
     assert.plainObject(obj, 'obj');
-    assert.array(obj.runs, 'obj.runs');
-    return new RichText(obj.runs.map((run) => TextRun.fromObject(run)));
+    return new RichText(
+      (obj.runs ?? []).map((run) => TextRun.fromObject(run))
+    );
   }
 }

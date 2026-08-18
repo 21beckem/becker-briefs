@@ -231,7 +231,7 @@ export class Bullet {
     assert.plainObject(obj, 'obj');
     return new Bullet(
       obj.id,
-      RichText.fromObject(obj.text),
+      RichText.fromObject(obj.text ?? {}),
       obj.type == null ? null : TypeInstance.fromObject(obj.type),
       (obj.tags ?? []).map((tag) => Tag.fromObject(tag)),
       (obj.children ?? []).map((child) => Bullet.fromObject(child)),

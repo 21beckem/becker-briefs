@@ -72,7 +72,11 @@ export class BriefsEditor {
     this.#node.className = 'BRIEFS-editor';
     this.#node.tabIndex = -1;
 
-    this.#pageView = new PageView(this.#page, this.#typeRegistry, this.#tagRegistry);
+    this.#pageView = PageView.fromObject({
+      page: this.#page,
+      typeRegistry: this.#typeRegistry,
+      tagRegistry: this.#tagRegistry
+    });
     this.#node.appendChild(this.#pageView.node);
 
     this.#statusNode = document.createElement('div');
@@ -80,7 +84,7 @@ export class BriefsEditor {
     this.#statusNode.textContent = 'Becker Briefs';
     this.#node.appendChild(this.#statusNode);
 
-    this.#actionBar = new MobileActionBar();
+    this.#actionBar = MobileActionBar.fromObject({ navigator: navigator });
     this.#node.appendChild(this.#actionBar.node);
 
     this.#undoManager = this.#buildUndoManager();
@@ -115,9 +119,11 @@ export class BriefsEditor {
   }
 
   #buildUndoManager() {
-    return new UndoManager(
-      () => this.#page.toObject(this.#focusedLineId),
-      (snapshot) => {
+    return UndoManager.fromObject({
+      getSnapshot: () => {
+        return this.#page.toObject(this.#focusedLineId)
+      },
+      onRestore: (snapshot) => {
         this.#page = NotePage.fromObject(snapshot);
         this.#pageView.render(this.#page);
         this.#scheduleSave();
@@ -129,9 +135,9 @@ export class BriefsEditor {
         this.#node.focus();
 
         if (snapshot.focusId)
-          this.#pageView.findBlockView(snapshot.focusId)?.focusText();
+          this.#refocus(snapshot.focusId);
       }
-    );
+    });
   }
 
   #attachListeners() {
@@ -139,6 +145,21 @@ export class BriefsEditor {
       this.#focusedLineId = event.detail.lineId;
       this.#updateActionBarContext();
     });
+    this.#node.addEventListener('focusout', (event) => {
+      this.#updateActionBarContext();
+    });
+
+    if ('virtualKeyboard' in navigator) {
+      navigator.virtualKeyboard.overlaysContent = true;
+    } else {
+      alert('no virtualKeyboard!');
+      navigator.virtualKeyboard.addEventListener('geometrychange', (event) => {
+        const { x, y, width, height } = event.target.boundingRect;
+        const p = document.createElement('p');
+        p.textContent = JSON.stringify({ x, y, width, height });
+        this.node.parentElement.prepend(p);
+      });
+    }
 
     this.#node.addEventListener(BriefsEvents.BULLET_CHANGED, (event) => {
       const { bulletId, kind, updater } = event.detail;
@@ -242,14 +263,10 @@ export class BriefsEditor {
 
     if (action === 'new-sibling') {
       this.#undoManager.commitImmediateChange();
-      const newBullet = new Bullet(
-        IdGenerator.generate('bullet'),
-        RichText.plain(''),
-        null,
-        [],
-        [],
-        false
-      );
+      const newBullet = Bullet.fromObject({
+        id: IdGenerator.generate('bullet'),
+        text: RichText.plain('')
+      });
       this.#page = this.#page.withContent(
         BulletTreeOps.insertAfter(this.#page.content, bulletId, newBullet)
       );
@@ -338,7 +355,10 @@ export class BriefsEditor {
 
     if (lineType === 'bullet') {
       if (block instanceof Bullet) return;
-      const newBullet = new Bullet(block.id, block.text, null, [], [], false);
+      const newBullet = Bullet.fromObject({
+        id: block.id,
+        text: block.text
+      });
       content = BulletTreeOps.replaceBlock(content, id, newBullet);
     } else {
       const level = Number.parseInt(lineType.split('-')[1], 10);
@@ -351,7 +371,11 @@ export class BriefsEditor {
           content = BulletTreeOps.outdent(content, id);
           depth = BulletTreeOps.depthOf(content, id);
         }
-        const newHeading = new HeadingBlock(block.id, level, block.text);
+        const newHeading = HeadingBlock.fromObject({
+          id: block.id,
+          level: level,
+          text: block.text
+        });
         content = BulletTreeOps.replaceBlock(content, id, newHeading);
       }
     }
@@ -545,25 +569,14 @@ export class BriefsEditor {
     return new BriefsEditor(
       obj.container,
       obj.styleContainer ?? obj.head,
-      obj.typeRegistry ?? new TypeRegistry([]),
+      obj.typeRegistry ?? TypeRegistry.fromArray([]),
       obj.tagRegistry,
       obj.persistenceAdapter,
-      obj.initialPage ?? new NotePage(
-        IdGenerator.generate('page'),
-        '',
-        new Date(),
-        [], // tags
-        [
-          new Bullet(
-            IdGenerator.generate('bullet'),
-            RichText.plain(''),
-            null,
-            [],
-            [],
-            false
-          )
-        ]
-      ),
+      obj.initialPage ?? NotePage.fromObject({
+        id: IdGenerator.generate('page'),
+        name: obj.name,
+        date: obj.date,
+      })
     );
   }
 }

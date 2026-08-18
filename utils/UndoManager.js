@@ -130,4 +130,13 @@ export class UndoManager {
     this.#undoStack.push(this.#getSnapshot());
     this.#onRestore(snapshot);
   }
+
+  
+  static fromObject(obj) {
+    assert.plainObject(obj, 'obj');
+    return new UndoManager(
+      obj.getSnapshot,
+      obj.onRestore,
+    )
+  }
 }

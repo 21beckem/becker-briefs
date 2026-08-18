@@ -112,4 +112,10 @@ export class InlineCommandMenu {
   destroy() {
     this.#node.remove();
   }
+
+  
+  static fromObject(obj) {
+    assert.plainObject(obj, 'obj');
+    return new InlineCommandMenu(obj.onSelect)
+  }
 }

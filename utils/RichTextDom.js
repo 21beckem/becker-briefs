@@ -24,7 +24,9 @@ export class RichTextDom {
     const walk = (domNode, bold, italic, link) => {
       if (domNode.nodeType === Node.TEXT_NODE) {
         if (domNode.textContent.length > 0)
-          runs.push(new TextRun(domNode.textContent, bold, italic, link));
+          runs.push(TextRun.fromObject({
+            text: domNode.textContent, bold, italic, link
+          }));
         return;
       }
       if (domNode.nodeType !== Node.ELEMENT_NODE) return;
@@ -33,7 +35,9 @@ export class RichTextDom {
       const nextItalic = italic || tag === 'i' || tag === 'em';
       const nextLink = tag === 'a' ? domNode.getAttribute('href') ?? link : link;
       if (tag === 'br') {
-        runs.push(new TextRun('\n', bold, italic, link));
+        runs.push(TextRun.fromObject({
+          text: '\n', bold, italic, link
+        }));
         return;
       }
       domNode.childNodes.forEach((child) =>
@@ -42,7 +46,7 @@ export class RichTextDom {
     };
     node.childNodes.forEach((child) => walk(child, false, false, null));
     if (runs.length === 0) return RichText.plain('');
-    return new RichText(runs);
+    return RichText.fromObject({ runs });
   }
 
   /**

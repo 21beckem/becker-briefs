@@ -44,4 +44,12 @@ export class PersistenceAdapter {
     assert.plainObject(obj, 'result of onLoad');
     return NotePage.fromObject(obj);
   }
+
+  static fromObject(obj) {
+    assert.plainObject(obj, 'obj');
+    return new PersistenceAdapter(
+      obj.onSave,
+      obj.onLoad
+    );
+  }
 }

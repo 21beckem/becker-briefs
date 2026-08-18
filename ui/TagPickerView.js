@@ -109,4 +109,12 @@ export class TagPickerView {
   destroy() {
     this.#node.remove();
   }
+
+  static fromObject(obj) {
+    assert.plainObject(obj, 'obj');
+    return new TagPickerView(
+      obj.tagRegistry,
+      obj.onPick
+    )
+  }
 }

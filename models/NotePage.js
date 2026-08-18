@@ -2,6 +2,7 @@ import { assert } from '../utils/assert.js';
 import { Tag } from './Tag.js';
 import { HeadingBlock } from './HeadingBlock.js';
 import { Bullet } from './Bullet.js';
+import { IdGenerator } from '../utils/IdGenerator.js';
 
 /**
  * NotePage
@@ -166,7 +167,11 @@ export class NotePage {
    */
   static fromObject(obj) {
     assert.plainObject(obj, 'obj');
-    const content = (obj.content ?? []).map((block) => {
+    const rawContent = (obj.content ?? [{
+      blockType: 'bullet',
+      id: IdGenerator.generate('bullet'),
+    }]);
+    const content = rawContent.map((block) => {
       assert.plainObject(block, 'content item');
       if (block.blockType === 'heading') return HeadingBlock.fromObject(block);
       if (block.blockType === 'bullet') return Bullet.fromObject(block);

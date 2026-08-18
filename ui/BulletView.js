@@ -145,7 +145,9 @@ export class BulletView {
 
     row.appendChild(rowMain);
 
-    this.#commandMenu = new InlineCommandMenu((item) => this.#applyInlineCommand(item));
+    this.#commandMenu = InlineCommandMenu.fromObject({
+      onSelect: (item) => this.#applyInlineCommand(item)
+    });
     row.appendChild(this.#commandMenu.node);
 
     this.#childrenNode = document.createElement('div');
@@ -179,13 +181,14 @@ export class BulletView {
       } else {
         if (this.#typePill !== null) this.#typePill.destroy();
         this.#pillSlot.textContent = '';
-        this.#typePill = new TypePillView(
-          this.#bullet.type,
+        this.#typePill = TypePillView.fromObject({
+          typeInstance: this.#bullet.type,
           definition,
-          (patch) =>
+          onDataChange: (patch) =>
             this.#dispatchChanged('type', (bullet) => bullet.withType(bullet.type.withData(patch))),
-          () => this.#dispatchChanged('type', (bullet) => bullet.withType(null))
-        );
+          onRemove: () =>
+            this.#dispatchChanged('type', (bullet) => bullet.withType(null))
+        });
         this.#pillSlot.appendChild(this.#typePill.node);
       }
       if (definition.isStrikethrough(this.#bullet.type))
@@ -206,8 +209,10 @@ export class BulletView {
   #renderTagChips() {
     this.#tagRow.textContent = '';
     for (const tag of this.#bullet.tags) {
-      const chip = new TagChipView(tag, (tagId) => {
-        this.#dispatchChanged('tag', (bullet) => bullet.withTagRemoved(tagId));
+      const chip = TagChipView.fromObject({
+        tag,
+        onRemove: (tagId) =>
+          this.#dispatchChanged('tag', (bullet) => bullet.withTagRemoved(tagId))
       });
       this.#tagRow.appendChild(chip.node);
     }
@@ -216,7 +221,11 @@ export class BulletView {
   #renderChildren() {
     this.#childrenNode.textContent = '';
     this.#childViews = this.#bullet.children.map((child) => {
-      const view = new BulletView(child, this.#typeRegistry, this.#tagRegistry);
+      const view = BulletView.fromObject({
+        bullet: child,
+        typeRegistry: this.#typeRegistry,
+        tagRegistry: this.#tagRegistry
+      });
       this.#childrenNode.appendChild(view.node);
       return view;
     });
@@ -465,5 +474,15 @@ export class BulletView {
     this.#commandMenu.destroy();
     this.#childViews.forEach((view) => view.destroy());
     this.#node.remove();
+  }
+  
+
+  static fromObject(obj) {
+    assert.plainObject(obj, 'obj');
+    return new BulletView(
+      obj.bullet,
+      obj.typeRegistry,
+      obj.tagRegistry
+    )
   }
 }

@@ -135,4 +135,11 @@ export class HeadingBlockView {
   destroy() {
     this.#node.remove();
   }
+
+  static fromObject(obj) {
+    assert.plainObject(obj, 'obj');
+    return new HeadingBlockView(
+      obj.heading
+    )
+  }
 }

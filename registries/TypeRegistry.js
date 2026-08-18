@@ -14,12 +14,15 @@ export class TypeRegistry {
   #definitions;
 
   /**
-   * @param {TypeDefinition[]} definitions
+   * @param {Function[]} definitions
    */
   constructor(definitions) {
-    assert.arrayOf(definitions, TypeDefinition, 'definitions');
+    assert.arrayOf(definitions, Function, 'definitions');
+    definitions.forEach(d => assert.instanceOf(d.constructor, Function, 'definition constructor'));
+
     const map = new Map();
-    for (const definition of definitions) {
+    for (let i = 0; i < definitions.length; i++) {
+      const definition = new definitions[i]();
       if (map.has(definition.id))
         throw new Error(`Duplicate type id in registry: ${definition.id}`);
       map.set(definition.id, definition);
@@ -59,8 +62,8 @@ export class TypeRegistry {
    * @param {object} obj expects { definitions: TypeDefinition[] }
    * @returns {TypeRegistry}
    */
-  static fromObject(obj) {
-    assert.plainObject(obj, 'obj');
-    return new TypeRegistry(obj.definitions);
+  static fromArray(arr) {
+    assert.array(arr, 'arr');
+    return new TypeRegistry(arr);
   }
 }

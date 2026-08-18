@@ -136,8 +136,11 @@ export class TypePillView {
   }
 
   #openModal(contentNode) {
-    this.#modal = new ModalView(contentNode, () => {
-      this.#modal = null;
+    this.#modal = ModalView.fromObject({
+      contentNode,
+      onClose: () => {
+        this.#modal = null;
+      }
     });
     this.#modal.open();
   }
@@ -145,5 +148,16 @@ export class TypePillView {
   destroy() {
     if (this.#modal !== null) this.#modal.destroy();
     this.#node.remove();
+  }
+
+  
+  static fromObject(obj) {
+    assert.plainObject(obj, 'obj');
+    return new TypePillView(
+      obj.typeInstance,
+      obj.definition,
+      obj.onDataChange,
+      obj.onRemove
+    )
   }
 }
