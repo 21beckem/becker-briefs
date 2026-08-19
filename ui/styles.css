@@ -27,12 +27,15 @@
 /* ---------- BRIEFS-editor root ---------- */
 
 .BRIEFS-editor {
+  --BRIEFS-vk-height: 0px;
   background: var(--BRIEFS-paper-raised);
   border: 1px solid var(--BRIEFS-rule);
   border-radius: 10px;
   box-shadow: 0 1px 0 rgba(32, 38, 43, 0.04);
   padding-bottom: 8px;
   position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .BRIEFS-editor__status {
@@ -563,7 +566,7 @@
     border-radius: 0;
     width: 100vw;
     left: 0;
-    bottom: env(keyboard-inset-height, 0px);
+    bottom: var(--BRIEFS-vk-height, 0px);
     transition: bottom 0.25s ease;
   }
 }

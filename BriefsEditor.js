@@ -140,7 +140,26 @@ export class BriefsEditor {
     });
   }
 
+  #manageMobileKeyboard() {
+    if (!('virtualKeyboard' in navigator)) return;
+    const vk = navigator.virtualKeyboard;
+    vk.overlaysContent = true;
+    
+    vk.addEventListener('geometrychange', (event) => {
+      const { x, y, width, height } = event.target.boundingRect;
+      const maxDistFromTopOfScreen = window.screen.height - (height + y + this.#actionBar.node.offsetHeight);
+      const nodeDisFromTopOfScreen = this.#node.getBoundingClientRect().top;
+      const maxHeight = maxDistFromTopOfScreen - nodeDisFromTopOfScreen;
+      this.#node.style.maxHeight = `${maxHeight - 20}px`;
+      this.#node.style.setProperty('--BRIEFS-vk-height', `${height}px`);
+      // setTimeout(() => {
+      //   this.#pageView.findBlockView(id)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      // }, 1000);
+    });
+  }
+
   #attachListeners() {
+    this.#manageMobileKeyboard();
     this.#node.addEventListener(BriefsEvents.LINE_FOCUSED, (event) => {
       this.#focusedLineId = event.detail.lineId;
       this.#updateActionBarContext();
@@ -148,18 +167,6 @@ export class BriefsEditor {
     this.#node.addEventListener('focusout', (event) => {
       this.#updateActionBarContext();
     });
-
-    if ('virtualKeyboard' in navigator) {
-      navigator.virtualKeyboard.overlaysContent = true;
-    } else {
-      alert('no virtualKeyboard!');
-      navigator.virtualKeyboard.addEventListener('geometrychange', (event) => {
-        const { x, y, width, height } = event.target.boundingRect;
-        const p = document.createElement('p');
-        p.textContent = JSON.stringify({ x, y, width, height });
-        this.node.parentElement.prepend(p);
-      });
-    }
 
     this.#node.addEventListener(BriefsEvents.BULLET_CHANGED, (event) => {
       const { bulletId, kind, updater } = event.detail;
