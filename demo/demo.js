@@ -1,19 +1,6 @@
-import { BriefsEditor } from '../BriefsEditor.js';
-import { NotePage } from '../models/NotePage.js';
-import { HeadingBlock } from '../models/HeadingBlock.js';
-import { Bullet } from '../models/Bullet.js';
-import { RichText } from '../models/RichText.js';
-import { Tag } from '../models/Tag.js';
-import { TypeInstance } from '../models/TypeInstance.js';
-import { TypeRegistry } from '../registries/TypeRegistry.js';
-import { TagRegistry } from '../registries/TagRegistry.js';
-import { PersistenceAdapter } from '../persistence/PersistenceAdapter.js';
-import { IdGenerator } from '../utils/IdGenerator.js';
+import { BriefsCollection, Query, Tag, TypeRegistry, TagRegistry, PersistenceAdapter } from '../BriefsCollection.js';
 import { TodoType } from './TodoType.js';
 import { ScheduleType } from './ScheduleType.js';
-import { assert } from '../utils/assert.js';
-import { BriefsCollection } from '../BriefsCollection.js';
-import { Query } from '../models/Query.js';
 
 const STORAGE_KEY = 'briefs-demo:page';
 
@@ -27,7 +14,7 @@ const tagRegistry = TagRegistry.fromObject({
   ],
   onCreateTag: (label) =>
     Tag.fromObject({
-      id: IdGenerator.generate('tag'),
+      id: 'tag-' + label.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       label
     })
 });
@@ -47,8 +34,6 @@ const persistenceAdapter = PersistenceAdapter.fromObject({
 
 
 const onQuery = async (query) => {
-  assert.instanceOf(query, Query, 'query');
-  
   // contact the api to get results, just an example below:
   return Query.responseFromObject({
     results: [{

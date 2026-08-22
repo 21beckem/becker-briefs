@@ -1,4 +1,10 @@
 import { Query } from './models/Query.js';
+import { Tag } from './models/Tag.js';
+import { TypeRegistry } from './registries/TypeRegistry.js';
+import { TagRegistry } from './registries/TagRegistry.js';
+import { PersistenceAdapter } from './persistence/PersistenceAdapter.js';
+import { TypeDefinition } from './registries/TypeDefinition.js';
+export { Query, Tag, TypeRegistry, TagRegistry, PersistenceAdapter, TypeDefinition };
 import { QueryResponse } from './models/QueryResponse.js';
 import { BriefsEditor } from './BriefsEditor.js';
 import { MultiSelectOption } from './ui/MultiSelectOption.js';
@@ -6,9 +12,6 @@ import { MultiSelectPopover } from './ui/MultiSelectPopover.js';
 import { SingleSelectOption } from './ui/SingleSelectOption.js';
 import { SingleSelectDropdown } from './ui/SingleSelectDropdown.js';
 import { assert } from './utils/assert.js';
-import { TypeRegistry } from './registries/TypeRegistry.js';
-import { TagRegistry } from './registries/TagRegistry.js';
-import { PersistenceAdapter } from './persistence/PersistenceAdapter.js';
 
 export class BriefsCollection {
   static get layouts() {
@@ -865,6 +868,7 @@ export class BriefsCollection {
           --bc-label: 0.6875rem;
           --bc-radius: 6px;
           height: 100%;
+          flex: 1;
           display: flex;
           flex-direction: column;
           gap: var(--bc-space-4);
