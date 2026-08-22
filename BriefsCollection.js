@@ -345,27 +345,28 @@ export class BriefsCollection {
     const wrapper = document.createElement('div');
     wrapper.className = 'briefs-collection__sort';
 
-    const select = document.createElement('select');
-    select.className = 'briefs-collection__sort-by';
-    select.setAttribute('aria-label', 'Sort by');
+    // Sorty By dropdown
+    // const select = document.createElement('select');
+    // select.className = 'briefs-collection__sort-by';
+    // select.setAttribute('aria-label', 'Sort by');
 
-    const modifiedOption = document.createElement('option');
-    modifiedOption.value = Query.sortFields.MODIFIED;
-    modifiedOption.textContent = 'Last modified';
-    select.appendChild(modifiedOption);
+    // const modifiedOption = document.createElement('option');
+    // modifiedOption.value = Query.sortFields.MODIFIED;
+    // modifiedOption.textContent = 'Last modified';
+    // select.appendChild(modifiedOption);
 
-    const createdOption = document.createElement('option');
-    createdOption.value = Query.sortFields.CREATED;
-    createdOption.textContent = 'Date created';
-    select.appendChild(createdOption);
+    // const createdOption = document.createElement('option');
+    // createdOption.value = Query.sortFields.CREATED;
+    // createdOption.textContent = 'Date created';
+    // select.appendChild(createdOption);
 
-    select.value = this.#currentQuery.sortBy;
-    select.addEventListener('change', () => {
-      this.#currentQuery.sortBy = select.value;
-      this.#currentQuery.pageIndex = 0;
-      this.#runQuery();
-    });
-    wrapper.appendChild(select);
+    // select.value = this.#currentQuery.sortBy;
+    // select.addEventListener('change', () => {
+    //   this.#currentQuery.sortBy = select.value;
+    //   this.#currentQuery.pageIndex = 0;
+    //   this.#runQuery();
+    // });
+    // wrapper.appendChild(select);
 
     const directionButton = document.createElement('button');
     directionButton.type = 'button';

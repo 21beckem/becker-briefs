@@ -156,7 +156,7 @@ export class NotePage {
       id: this.#id,
       name: this.#name,
       date: this.#date.toISOString(),
-      tags: this.#tags.map((tag) => tag.toObject()),
+      tags: this.#tags.map((tag) => tag.id),
       content: this.#content.map((block) => block.toObject()),
       focusId: activeElId ?? undefined
     };

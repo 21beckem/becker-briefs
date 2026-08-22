@@ -217,7 +217,7 @@ export class Bullet {
       id: this.#id,
       text: this.#text.toObject(),
       type: this.#type === null ? null : this.#type.toObject(),
-      tags: this.#tags.map((tag) => tag.toObject()),
+      tags: this.#tags.map((tag) => tag.id),
       children: this.#children.map((child) => child.toObject()),
       collapsed: this.#collapsed,
     };

@@ -2,12 +2,12 @@ import { QueryResponse } from './QueryResponse.js';
 import { assert } from '../utils/assert.js';
 
 export class Query {
-  static get sortFields() {
-    return Object.freeze({
-      CREATED: 'created',
-      MODIFIED: 'modified'
-    });
-  }
+  // static get sortFields() {
+  //   return Object.freeze({
+  //     CREATED: 'created',
+  //     MODIFIED: 'modified'
+  //   });
+  // }
 
   static get sortDirections() {
     return Object.freeze({
@@ -21,16 +21,16 @@ export class Query {
   #typeIds;
   #pageIndex;
   #pageLength;
-  #sortBy;
+  // #sortBy;
   #sortDirection;
 
-  constructor(text, tagIds, typeIds, pageIndex, pageLength, sortBy, sortDirection) {
+  constructor(text, tagIds, typeIds, pageIndex, pageLength, /* sortBy, */ sortDirection) {
     this.text = text;
     this.tagIds = tagIds;
     this.typeIds = typeIds;
     this.pageIndex = pageIndex;
     this.pageLength = pageLength;
-    this.sortBy = sortBy;
+    // this.sortBy = sortBy;
     this.sortDirection = sortDirection;
   }
 
@@ -79,15 +79,15 @@ export class Query {
     this.#pageLength = value;
   }
 
-  get sortBy() {
-    return this.#sortBy;
-  }
+  // get sortBy() {
+  //   return this.#sortBy;
+  // }
 
-  set sortBy(value) {
-    if (!Object.values(Query.sortFields).includes(value))
-      throw new TypeError(`sortBy must be one of: ${Object.values(Query.sortFields).join(', ')}.`);
-    this.#sortBy = value;
-  }
+  // set sortBy(value) {
+  //   if (!Object.values(Query.sortFields).includes(value))
+  //     throw new TypeError(`sortBy must be one of: ${Object.values(Query.sortFields).join(', ')}.`);
+  //   this.#sortBy = value;
+  // }
 
   get sortDirection() {
     return this.#sortDirection;
@@ -106,7 +106,7 @@ export class Query {
       this.typeIds,
       this.#pageIndex,
       this.#pageLength,
-      this.#sortBy,
+      // this.#sortBy,
       this.#sortDirection
     );
   }
@@ -118,7 +118,7 @@ export class Query {
       typeIds: this.typeIds,
       pageIndex: this.#pageIndex,
       pageLength: this.#pageLength,
-      sortBy: this.#sortBy,
+      // sortBy: this.#sortBy,
       sortDirection: this.#sortDirection
     };
   }
@@ -130,13 +130,21 @@ export class Query {
     if (this.#typeIds.length > 0) params.set('types', this.#typeIds.join(','));
     if (this.#pageIndex !== 0) params.set('pageIndex', String(this.#pageIndex));
     if (this.#pageLength !== 20) params.set('pageLength', String(this.#pageLength));
-    if (this.#sortBy !== Query.sortFields.MODIFIED) params.set('sortBy', this.#sortBy);
+    // if (this.#sortBy !== Query.sortFields.MODIFIED) params.set('sortBy', this.#sortBy);
     if (this.#sortDirection !== Query.sortDirections.DESC) params.set('sortDirection', this.#sortDirection);
     return params;
   }
 
   static blank() {
-    return new Query('', [], [], 0, 20, Query.sortFields.MODIFIED, Query.sortDirections.DESC);
+    return new Query(
+      '', // text
+      [], // tagIds
+      [], // typeIds
+      0,  // pageIndex
+      20, // pageLength
+      // Query.sortFields.MODIFIED, // sortBy
+      Query.sortDirections.DESC  // sortDirection
+    );
   }
 
   static fromObject(obj) {
@@ -148,7 +156,7 @@ export class Query {
       obj.typeIds === undefined ? fallback.typeIds : obj.typeIds,
       obj.pageIndex === undefined ? fallback.pageIndex : obj.pageIndex,
       obj.pageLength === undefined ? fallback.pageLength : obj.pageLength,
-      obj.sortBy === undefined ? fallback.sortBy : obj.sortBy,
+      // obj.sortBy === undefined ? fallback.sortBy : obj.sortBy,
       obj.sortDirection === undefined ? fallback.sortDirection : obj.sortDirection
     );
   }
@@ -167,7 +175,7 @@ export class Query {
       params.has('types') ? params.get('types').split(',').filter((id) => id.length > 0) : fallback.typeIds,
       pageIndexRaw !== null ? Number.parseInt(pageIndexRaw, 10) : fallback.pageIndex,
       pageLengthRaw !== null ? Number.parseInt(pageLengthRaw, 10) : fallback.pageLength,
-      params.get('sortBy') ?? fallback.sortBy,
+      // params.get('sortBy') ?? fallback.sortBy,
       params.get('sortDirection') ?? fallback.sortDirection
     );
   }
