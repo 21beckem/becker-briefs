@@ -66,6 +66,8 @@ export class BriefsCollection {
   #infiniteScrollObserver;
   #activeLauncherNode;
   #activeEditor;
+  #tagFilterPopover;
+  #typeFilterPopover;
 
   #node;
   #toolbarNode;
@@ -124,6 +126,8 @@ export class BriefsCollection {
     this.#infiniteScrollObserver = null;
     this.#activeLauncherNode = null;
     this.#activeEditor = null;
+    this.#tagFilterPopover = null;
+    this.#typeFilterPopover = null;
 
     this.#effectiveLayout = this.#resolveEffectiveLayout();
     this.#effectiveLaunchMode = this.#resolveEffectiveLaunchMode();
@@ -153,7 +157,7 @@ export class BriefsCollection {
       obj.initialQuery === undefined ? Query.fromWindowSearchParams() : obj.initialQuery,
       obj.searchTrigger === undefined ? BriefsCollection.searchTriggers.DEBOUNCED : obj.searchTrigger,
       obj.paginationStyle === undefined ? BriefsCollection.paginationStyles.NUMBERED : obj.paginationStyle,
-      obj.showNewBriefButton === undefined ? true : obj.showNewBriefButton
+      obj.showNewBriefButton === undefined ? false : obj.showNewBriefButton
     );
   }
 
@@ -168,6 +172,8 @@ export class BriefsCollection {
   destroy() {
     if (this.#searchDebounceHandle !== null) window.clearTimeout(this.#searchDebounceHandle);
     if (this.#infiniteScrollObserver !== null) this.#infiniteScrollObserver.disconnect();
+    if (this.#tagFilterPopover !== null) this.#tagFilterPopover.destroy();
+    if (this.#typeFilterPopover !== null) this.#typeFilterPopover.destroy();
     this.#closeBrief();
     this.#node.remove();
   }
@@ -300,41 +306,39 @@ export class BriefsCollection {
     const wrapper = document.createElement('div');
     wrapper.className = 'briefs-collection__filters';
 
-    const tagSelect = document.createElement('select');
-    tagSelect.className = 'briefs-collection__tag-filter';
-    tagSelect.multiple = true;
-    tagSelect.setAttribute('aria-label', 'Filter by tag');
-    for (const tag of this.#tagRegistry.list()) {
-      const option = document.createElement('option');
-      option.value = tag.id;
-      option.textContent = tag.label;
-      option.selected = this.#currentQuery.tagIds.includes(tag.id);
-      tagSelect.appendChild(option);
-    }
-    tagSelect.addEventListener('change', () => {
-      this.#currentQuery.tagIds = Array.from(tagSelect.selectedOptions).map((option) => option.value);
-      this.#currentQuery.pageIndex = 0;
-      this.#runQuery();
+    const tagOptions = this.#tagRegistry.list().map((tag) => MultiSelectOption.fromObject({
+      id: tag.id,
+      label: tag.label,
+      color: tag.color === undefined ? null : tag.color
+    }));
+    this.#tagFilterPopover = MultiSelectPopover.fromObject({
+      label: 'Tags',
+      options: tagOptions,
+      selectedIds: this.#currentQuery.tagIds,
+      onChange: (selectedIds) => {
+        this.#currentQuery.tagIds = selectedIds;
+        this.#currentQuery.pageIndex = 0;
+        this.#runQuery();
+      }
     });
-    wrapper.appendChild(tagSelect);
+    wrapper.appendChild(this.#tagFilterPopover.node);
 
-    const typeSelect = document.createElement('select');
-    typeSelect.className = 'briefs-collection__type-filter';
-    typeSelect.multiple = true;
-    typeSelect.setAttribute('aria-label', 'Filter by type');
-    for (const typeDefinition of this.#typeRegistry.list()) {
-      const option = document.createElement('option');
-      option.value = typeDefinition.id;
-      option.textContent = typeDefinition.label;
-      option.selected = this.#currentQuery.typeIds.includes(typeDefinition.id);
-      typeSelect.appendChild(option);
-    }
-    typeSelect.addEventListener('change', () => {
-      this.#currentQuery.typeIds = Array.from(typeSelect.selectedOptions).map((option) => option.value);
-      this.#currentQuery.pageIndex = 0;
-      this.#runQuery();
+    const typeOptions = this.#typeRegistry.list().map((typeDefinition) => MultiSelectOption.fromObject({
+      id: typeDefinition.id,
+      label: typeDefinition.label,
+      color: null
+    }));
+    this.#typeFilterPopover = MultiSelectPopover.fromObject({
+      label: 'Types',
+      options: typeOptions,
+      selectedIds: this.#currentQuery.typeIds,
+      onChange: (selectedIds) => {
+        this.#currentQuery.typeIds = selectedIds;
+        this.#currentQuery.pageIndex = 0;
+        this.#runQuery();
+      }
     });
-    wrapper.appendChild(typeSelect);
+    wrapper.appendChild(this.#typeFilterPopover.node);
 
     return wrapper;
   }
@@ -444,7 +448,7 @@ export class BriefsCollection {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'briefs-collection__new-brief-button';
-    button.textContent = '+ New Brief';
+    button.textContent = 'New Brief';
     button.addEventListener('click', () => {
       this.#openBrief(null);
     });
@@ -589,10 +593,18 @@ export class BriefsCollection {
         const tag = this.#tagRegistry.get(tagId);
         const chip = document.createElement('span');
         chip.className = 'briefs-collection__tag-chip';
-        chip.textContent = tag !== null && tag !== undefined ? tag.label : tagId;
+
+        const dot = document.createElement('span');
+        dot.className = 'briefs-collection__tag-dot';
         if (tag !== null && tag !== undefined && tag.color) {
-          chip.style.setProperty('--briefs-collection-tag-color', tag.color);
+          dot.style.setProperty('--briefs-collection-tag-color', tag.color);
         }
+        chip.appendChild(dot);
+
+        const label = document.createElement('span');
+        label.textContent = tag !== null && tag !== undefined ? tag.label : tagId;
+        chip.appendChild(label);
+
         tagRow.appendChild(chip);
       }
       card.appendChild(tagRow);
@@ -682,7 +694,7 @@ export class BriefsCollection {
     const prevButton = document.createElement('button');
     prevButton.type = 'button';
     prevButton.className = 'briefs-collection__page-button';
-    prevButton.textContent = 'Previous';
+    prevButton.textContent = '‹ Previous';
     prevButton.disabled = currentPage <= 0;
     prevButton.addEventListener('click', () => {
       this.#currentQuery.pageIndex = currentPage - 1;
@@ -698,7 +710,7 @@ export class BriefsCollection {
     const nextButton = document.createElement('button');
     nextButton.type = 'button';
     nextButton.className = 'briefs-collection__page-button';
-    nextButton.textContent = 'Next';
+    nextButton.textContent = 'Next ›';
     nextButton.disabled = currentPage >= totalPages - 1;
     nextButton.addEventListener('click', () => {
       this.#currentQuery.pageIndex = currentPage + 1;
@@ -774,7 +786,8 @@ export class BriefsCollection {
     const closeButton = document.createElement('button');
     closeButton.type = 'button';
     closeButton.className = 'briefs-collection__launcher-close';
-    closeButton.textContent = 'Close';
+    closeButton.setAttribute('aria-label', 'Close');
+    closeButton.textContent = '×';
     closeButton.addEventListener('click', () => this.#closeBrief());
     overlay.appendChild(closeButton);
 
@@ -819,247 +832,514 @@ export class BriefsCollection {
 
   #injectStylesheet() {
     if (window['__BECKER_BRIEFS_COLLECTION_STYLES_INJECTED__'] !== true) {
-        window['__BECKER_BRIEFS_COLLECTION_STYLES_INJECTED__'] = true;
-        this.#appendPreconnect(this.#head, 'https://fonts.googleapis.com', false);
-        this.#appendPreconnect(this.#head, 'https://fonts.gstatic.com', true);
-        this.#appendStylesheet(this.#head, 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap');
-        this.#appendStylesheet(this.#head, './ui/styles.css');
+      window['__BECKER_BRIEFS_COLLECTION_STYLES_INJECTED__'] = true;
+      this.#appendPreconnect(this.#head, 'https://fonts.googleapis.com', false);
+      this.#appendPreconnect(this.#head, 'https://fonts.gstatic.com', true);
+      this.#appendStylesheet(this.#head, 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap');
+      this.#appendStylesheet(this.#head, './ui/styles.css');
     }
 
     if (this.#head.querySelector(`#${BriefsCollection.#STYLE_ELEMENT_ID}`) === null) {
-        const style = document.createElement('style');
-        style.id = BriefsCollection.#STYLE_ELEMENT_ID;
-        style.textContent = `
-          .briefs-collection {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            font-family: var(--BRIEFS-font-body);
-            color: var(--BRIEFS-ink);
-            background: var(--BRIEFS-paper);
-          }
-          .briefs-collection__toolbar {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.75rem;
-            background: var(--BRIEFS-paper-raised);
-            border-bottom: 1px solid var(--BRIEFS-rule);
-          }
-          .briefs-collection__search-input,
-          .briefs-collection__tag-filter,
-          .briefs-collection__type-filter,
-          .briefs-collection__sort-by {
-            font-family: var(--BRIEFS-font-body);
-            color: var(--BRIEFS-ink);
-            background: var(--BRIEFS-paper);
-            border: 1px solid var(--BRIEFS-rule);
-            border-radius: 4px;
-            padding: 0.4rem 0.6rem;
-          }
-          .briefs-collection__search-submit,
-          .briefs-collection__sort-direction,
-          .briefs-collection__layout-button,
-          .briefs-collection__launch-mode-button,
-          .briefs-collection__new-brief-button,
-          .briefs-collection__page-button {
-            font-family: var(--BRIEFS-font-mono);
-            color: var(--BRIEFS-structural);
-            background: var(--BRIEFS-paper);
-            border: 1px solid var(--BRIEFS-structural-soft);
-            border-radius: 4px;
-            padding: 0.4rem 0.75rem;
-            cursor: pointer;
-          }
-          .briefs-collection__layout-button[aria-pressed='true'],
-          .briefs-collection__launch-mode-button[aria-pressed='true'] {
-            background: var(--BRIEFS-structural);
-            color: var(--BRIEFS-paper);
-          }
-          .briefs-collection__new-brief-button {
-            color: var(--BRIEFS-paper);
-            background: var(--BRIEFS-structural);
-            border-color: var(--BRIEFS-structural);
-          }
-          .briefs-collection__results {
-            padding: 0 0.75rem;
-          }
-          .briefs-collection__grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 0.75rem;
-          }
-          .briefs-collection__list {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-          }
-          .briefs-collection__card {
-            display: flex;
-            flex-direction: column;
-            gap: 0.35rem;
-            text-align: left;
-            font-family: var(--BRIEFS-font-body);
-            color: var(--BRIEFS-ink);
-            background: var(--BRIEFS-paper-raised);
-            border: 1px solid var(--BRIEFS-rule);
-            border-radius: 6px;
-            padding: 0.75rem;
-            cursor: pointer;
-          }
-          .briefs-collection__card:hover {
-            border-color: var(--BRIEFS-structural-soft);
-          }
-          .briefs-collection__card-title {
-            font-family: var(--BRIEFS-font-display);
-            font-size: 1.1rem;
-          }
-          .briefs-collection__card-date {
-            font-family: var(--BRIEFS-font-mono);
-            font-size: 0.75rem;
-            color: var(--BRIEFS-ink-soft);
-          }
-          .briefs-collection__card-snippet {
-            font-size: 0.9rem;
-            color: var(--BRIEFS-ink-soft);
-          }
-          .briefs-collection__card-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.3rem;
-          }
-          .briefs-collection__tag-chip {
-            font-family: var(--BRIEFS-font-mono);
-            font-size: 0.7rem;
-            color: var(--BRIEFS-paper);
-            background: var(--briefs-collection-tag-color, var(--BRIEFS-structural));
-            border-radius: 999px;
-            padding: 0.15rem 0.5rem;
-          }
-          .briefs-collection__empty,
-          .briefs-collection__error {
-            color: var(--BRIEFS-ink-soft);
-            font-style: italic;
-            padding: 2rem 0;
-            text-align: center;
-          }
-          .briefs-collection__error {
-            color: var(--BRIEFS-accent-todo);
-          }
-          .briefs-collection__calendar-month-label {
-            font-family: var(--BRIEFS-font-display);
-            font-size: 1.1rem;
-            padding: 0 0 0.5rem;
-          }
-          .briefs-collection__calendar-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 1px;
-            background: var(--BRIEFS-rule);
-            border: 1px solid var(--BRIEFS-rule);
-          }
-          .briefs-collection__calendar-cell {
-            background: var(--BRIEFS-paper-raised);
-            min-height: 90px;
-            padding: 0.3rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.2rem;
-          }
-          .briefs-collection__calendar-cell--empty {
-            background: var(--BRIEFS-paper);
-          }
-          .briefs-collection__calendar-day-label {
-            font-family: var(--BRIEFS-font-mono);
-            font-size: 0.7rem;
-            color: var(--BRIEFS-ink-soft);
-          }
-          .briefs-collection__calendar-entry {
-            font-family: var(--BRIEFS-font-body);
-            font-size: 0.75rem;
-            text-align: left;
-            background: none;
-            border: none;
-            color: var(--BRIEFS-structural);
-            cursor: pointer;
-            padding: 0;
-          }
-          .briefs-collection__pagination {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.75rem;
-            padding: 0.75rem;
-          }
-          .briefs-collection__page-label {
-            font-family: var(--BRIEFS-font-mono);
-            font-size: 0.85rem;
-            color: var(--BRIEFS-ink-soft);
-          }
-          .briefs-collection__scroll-sentinel {
-            height: 1px;
-          }
-          .briefs-collection__launcher {
-            position: fixed;
-            inset: 0;
-            z-index: 1000;
-            display: flex;
-          }
-          .briefs-collection__launcher-backdrop {
-            position: absolute;
-            inset: 0;
-            background: rgba(32, 38, 43, 0.5);
-          }
-          .briefs-collection__launcher--modal {
-            align-items: center;
-            justify-content: center;
+      const style = document.createElement('style');
+      style.id = BriefsCollection.#STYLE_ELEMENT_ID;
+      style.textContent = `
+        .briefs-collection {
+          --bc-space-1: 0.5rem;
+          --bc-space-2: 0.75rem;
+          --bc-space-3: 1.25rem;
+          --bc-space-4: 2rem;
+          --bc-label: 0.6875rem;
+          --bc-radius: 6px;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          gap: var(--bc-space-4);
+          font-family: var(--BRIEFS-font-body);
+          color: var(--BRIEFS-ink);
+          background: var(--BRIEFS-paper);
+        }
+        .briefs-collection *,
+        .briefs-collection *::before,
+        .briefs-collection *::after {
+          box-sizing: border-box;
+        }
+        .briefs-collection button {
+          font: inherit;
+        }
+        .briefs-collection :focus-visible {
+          outline: 1.5px solid var(--BRIEFS-structural);
+          outline-offset: 2px;
+        }
+
+        /* ---- toolbar ---- */
+        .briefs-collection__toolbar {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: var(--bc-space-2) var(--bc-space-3);
+          padding-bottom: var(--bc-space-2);
+          border-bottom: 1px solid var(--BRIEFS-rule);
+          padding-top: var(--bc-space-2);
+        }
+        .briefs-collection__results {
+          flex: 1 1 auto;
+          overflow: auto;
+        }
+        .briefs-collection__search {
+          display: flex;
+          align-items: center;
+          gap: var(--bc-space-1);
+          flex: 1 1 220px;
+          min-width: 160px;
+        }
+        .briefs-collection__search-input {
+          width: 100%;
+          font-family: var(--BRIEFS-font-body);
+          font-size: 0.95rem;
+          color: var(--BRIEFS-ink);
+          background: transparent;
+          border: none;
+          border-bottom: 1px solid var(--BRIEFS-rule);
+          padding: 0.35rem 0.1rem;
+          transition: border-color 120ms ease;
+        }
+        .briefs-collection__search-input::placeholder {
+          color: var(--BRIEFS-ink-soft);
+        }
+        .briefs-collection__search-input:focus-visible {
+          outline: none;
+          border-bottom-color: var(--BRIEFS-structural);
+        }
+        .briefs-collection__search-submit {
+          flex-shrink: 0;
+        }
+        .briefs-collection__filters,
+        .briefs-collection__sort,
+        .briefs-collection__layout-switcher,
+        .briefs-collection__launch-mode-switcher {
+          display: flex;
+          align-items: center;
+          gap: var(--bc-space-1);
+        }
+
+        /* ---- shared ghost/ pill buttons ---- */
+        .briefs-collection__search-submit,
+        .briefs-collection__sort-by,
+        .briefs-collection__sort-direction,
+        .briefs-collection__layout-button,
+        .briefs-collection__launch-mode-button,
+        .briefs-collection__page-button {
+          font-family: var(--BRIEFS-font-mono);
+          font-size: var(--bc-label);
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: var(--BRIEFS-ink-soft);
+          background: transparent;
+          border: 1px solid transparent;
+          border-radius: var(--bc-radius);
+          padding: 0.4rem 0.65rem;
+          cursor: pointer;
+          transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+        }
+        .briefs-collection__search-submit:hover,
+        .briefs-collection__sort-direction:hover,
+        .briefs-collection__layout-button:hover,
+        .briefs-collection__launch-mode-button:hover,
+        .briefs-collection__page-button:hover:not(:disabled) {
+          background: var(--BRIEFS-paper-raised);
+          color: var(--BRIEFS-ink);
+        }
+        .briefs-collection__page-button:disabled {
+          opacity: 0.35;
+          cursor: default;
+        }
+        .briefs-collection__sort-by {
+          text-transform: none;
+          letter-spacing: normal;
+          font-family: var(--BRIEFS-font-body);
+          font-size: 0.85rem;
+          border-color: var(--BRIEFS-rule);
+          appearance: none;
+          padding-right: 1.5rem;
+          background-image: linear-gradient(45deg, transparent 50%, var(--BRIEFS-ink-soft) 50%),
+            linear-gradient(135deg, var(--BRIEFS-ink-soft) 50%, transparent 50%);
+          background-position: calc(100% - 0.85rem) 55%, calc(100% - 0.6rem) 55%;
+          background-size: 4px 4px, 4px 4px;
+          background-repeat: no-repeat;
+        }
+        .briefs-collection__layout-button[aria-pressed='true'],
+        .briefs-collection__launch-mode-button[aria-pressed='true'] {
+          background: var(--BRIEFS-paper-raised);
+          color: var(--BRIEFS-structural);
+          border-color: var(--BRIEFS-structural-soft);
+        }
+        .briefs-collection__new-brief-button {
+          font-family: var(--BRIEFS-font-mono);
+          font-size: var(--bc-label);
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: var(--BRIEFS-paper);
+          background: var(--BRIEFS-structural);
+          border: 1px solid var(--BRIEFS-structural);
+          border-radius: var(--bc-radius);
+          padding: 0.45rem 0.85rem;
+          cursor: pointer;
+          margin-left: auto;
+          transition: opacity 120ms ease;
+        }
+        .briefs-collection__new-brief-button:hover {
+          opacity: 0.85;
+        }
+
+        /* ---- multiselect popover ---- */
+        .briefs-multiselect {
+          position: relative;
+        }
+        .briefs-multiselect__trigger {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          font-family: var(--BRIEFS-font-mono);
+          font-size: var(--bc-label);
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: var(--BRIEFS-ink-soft);
+          background: transparent;
+          border: 1px solid var(--BRIEFS-rule);
+          border-radius: var(--bc-radius);
+          padding: 0.4rem 0.65rem;
+          cursor: pointer;
+          transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+        }
+        .briefs-multiselect__trigger:hover {
+          background: var(--BRIEFS-paper-raised);
+          color: var(--BRIEFS-ink);
+        }
+        .briefs-multiselect__trigger--active {
+          color: var(--BRIEFS-structural);
+          border-color: var(--BRIEFS-structural-soft);
+          background: var(--BRIEFS-paper-raised);
+        }
+        .briefs-multiselect__chevron {
+          font-size: 0.7rem;
+          opacity: 0.7;
+        }
+        .briefs-multiselect__panel {
+          position: absolute;
+          top: calc(100% + 0.4rem);
+          left: 0;
+          z-index: 20;
+          width: 220px;
+          background: var(--BRIEFS-paper-raised);
+          border: 1px solid var(--BRIEFS-rule);
+          border-radius: var(--bc-radius);
+          box-shadow: 0 8px 24px rgba(32, 38, 43, 0.1);
+          padding: 0.5rem;
+        }
+        .briefs-multiselect__search {
+          width: 100%;
+          font-family: var(--BRIEFS-font-body);
+          font-size: 0.85rem;
+          color: var(--BRIEFS-ink);
+          background: var(--BRIEFS-paper);
+          border: 1px solid var(--BRIEFS-rule);
+          border-radius: 4px;
+          padding: 0.3rem 0.5rem;
+          margin-bottom: 0.4rem;
+        }
+        .briefs-multiselect__search:focus-visible {
+          outline: none;
+          border-color: var(--BRIEFS-structural);
+        }
+        .briefs-multiselect__options {
+          display: flex;
+          flex-direction: column;
+          gap: 0.15rem;
+          max-height: 220px;
+          overflow-y: auto;
+        }
+        .briefs-multiselect__option {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.85rem;
+          color: var(--BRIEFS-ink);
+          padding: 0.3rem 0.35rem;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+        .briefs-multiselect__option:hover {
+          background: var(--BRIEFS-paper);
+        }
+        .briefs-multiselect__checkbox {
+          accent-color: var(--BRIEFS-structural);
+          margin: 0;
+        }
+        .briefs-multiselect__swatch {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: var(--briefs-multiselect-swatch-color, var(--BRIEFS-ink-soft));
+          flex-shrink: 0;
+        }
+        .briefs-multiselect__option-label {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .briefs-multiselect__empty {
+          font-size: 0.8rem;
+          font-style: italic;
+          color: var(--BRIEFS-ink-soft);
+          padding: 0.4rem;
+        }
+
+        /* ---- results ---- */
+        .briefs-collection__grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+          gap: var(--bc-space-3);
+        }
+        .briefs-collection__list {
+          display: flex;
+          flex-direction: column;
+        }
+        .briefs-collection__list .briefs-collection__card {
+          border-radius: 0;
+          border-bottom: 1px solid var(--BRIEFS-rule);
+          padding: var(--bc-space-2) 0.25rem;
+        }
+        .briefs-collection__list .briefs-collection__card:last-child {
+          border-bottom: none;
+        }
+        .briefs-collection__card {
+          display: flex;
+          flex-direction: column;
+          gap: 0.4rem;
+          text-align: left;
+          font-family: var(--BRIEFS-font-body);
+          color: var(--BRIEFS-ink);
+          background: transparent;
+          border: none;
+          border-radius: var(--bc-radius);
+          padding: var(--bc-space-2);
+          cursor: pointer;
+          transition: background 140ms ease;
+        }
+        .briefs-collection__grid .briefs-collection__card {
+          background: var(--BRIEFS-paper-raised);
+        }
+        .briefs-collection__card:hover {
+          background: var(--BRIEFS-paper-raised);
+        }
+        .briefs-collection__card-title {
+          font-family: var(--BRIEFS-font-display);
+          font-size: 1.05rem;
+          font-weight: 500;
+          line-height: 1.3;
+        }
+        .briefs-collection__card-date {
+          font-family: var(--BRIEFS-font-mono);
+          font-size: 0.7rem;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: var(--BRIEFS-ink-soft);
+        }
+        .briefs-collection__card-snippet {
+          font-size: 0.88rem;
+          line-height: 1.5;
+          color: var(--BRIEFS-ink-soft);
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        .briefs-collection__card-tags {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.6rem;
+          margin-top: 0.15rem;
+        }
+        .briefs-collection__tag-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.3rem;
+          font-family: var(--BRIEFS-font-mono);
+          font-size: 0.65rem;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          color: var(--BRIEFS-ink-soft);
+        }
+        .briefs-collection__tag-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: var(--briefs-collection-tag-color, var(--BRIEFS-structural));
+        }
+        .briefs-collection__empty,
+        .briefs-collection__error {
+          color: var(--BRIEFS-ink-soft);
+          font-style: italic;
+          padding: var(--bc-space-4) 0;
+          text-align: center;
+        }
+        .briefs-collection__error {
+          color: var(--BRIEFS-accent-todo);
+        }
+
+        /* ---- calendar ---- */
+        .briefs-collection__calendar-month-label {
+          font-family: var(--BRIEFS-font-display);
+          font-size: 1.1rem;
+          padding-bottom: var(--bc-space-2);
+        }
+        .briefs-collection__calendar-grid {
+          display: grid;
+          grid-template-columns: repeat(7, 1fr);
+          border-top: 1px solid var(--BRIEFS-rule);
+          border-left: 1px solid var(--BRIEFS-rule);
+        }
+        .briefs-collection__calendar-cell {
+          background: var(--BRIEFS-paper);
+          border-right: 1px solid var(--BRIEFS-rule);
+          border-bottom: 1px solid var(--BRIEFS-rule);
+          min-height: 92px;
+          padding: 0.4rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+        .briefs-collection__calendar-cell--empty {
+          background: var(--BRIEFS-paper-raised);
+        }
+        .briefs-collection__calendar-day-label {
+          font-family: var(--BRIEFS-font-mono);
+          font-size: 0.68rem;
+          color: var(--BRIEFS-ink-soft);
+        }
+        .briefs-collection__calendar-entry {
+          font-family: var(--BRIEFS-font-body);
+          font-size: 0.78rem;
+          text-align: left;
+          background: none;
+          border: none;
+          color: var(--BRIEFS-ink);
+          cursor: pointer;
+          padding: 0;
+          line-height: 1.3;
+        }
+        .briefs-collection__calendar-entry:hover {
+          color: var(--BRIEFS-structural);
+        }
+
+        /* ---- pagination ---- */
+        .briefs-collection__pagination {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: var(--bc-space-3);
+          padding-top: var(--bc-space-1);
+          padding-bottom: var(--bc-space-4);
+        }
+        .briefs-collection__page-label {
+          font-family: var(--BRIEFS-font-mono);
+          font-size: 0.78rem;
+          color: var(--BRIEFS-ink-soft);
+        }
+        .briefs-collection__scroll-sentinel {
+          height: 1px;
+        }
+
+        /* ---- launcher overlay ---- */
+        .briefs-collection__launcher {
+          position: fixed;
+          inset: 0;
+          z-index: 1000;
+          display: flex;
+        }
+        .briefs-collection__launcher-backdrop {
+          position: absolute;
+          inset: 0;
+          background: rgba(32, 38, 43, 0.4);
+          backdrop-filter: blur(1.5px);
+        }
+        .briefs-collection__launcher--modal {
+          align-items: center;
+          justify-content: center;
+          padding: var(--bc-space-3);
+        }
+        .briefs-collection__launcher--modal .briefs-collection__launcher-editor {
+          position: relative;
+          width: min(92vw, 720px);
+          max-height: 85vh;
+          overflow-y: auto;
+          background: var(--BRIEFS-paper);
+          border-radius: 12px;
+          box-shadow: 0 24px 60px rgba(32, 38, 43, 0.22);
+          padding: var(--bc-space-4);
+        }
+        .briefs-collection__launcher--fullscreen .briefs-collection__launcher-editor {
+          position: relative;
+          width: 100%;
+          height: 100%;
+          background: var(--BRIEFS-paper);
+          overflow-y: auto;
+          padding: var(--bc-space-4);
+        }
+        .briefs-collection__launcher--sidebar {
+          justify-content: flex-end;
+        }
+        .briefs-collection__launcher--sidebar .briefs-collection__launcher-editor {
+          position: relative;
+          width: 50vw;
+          height: 100%;
+          background: var(--BRIEFS-paper);
+          overflow-y: auto;
+          box-shadow: -24px 0 60px rgba(32, 38, 43, 0.16);
+          padding: var(--bc-space-4);
+        }
+        @media (max-width: 640px) {
+          .briefs-collection__launcher--sidebar .briefs-collection__launcher-editor {
+            width: 100vw;
           }
           .briefs-collection__launcher--modal .briefs-collection__launcher-editor {
-            position: relative;
-            width: min(90vw, 720px);
-            max-height: 85vh;
-            overflow-y: auto;
-            background: var(--BRIEFS-paper);
-            border-radius: 8px;
-            padding: 1rem;
-          }
-          .briefs-collection__launcher--fullscreen .briefs-collection__launcher-editor {
             width: 100%;
-            height: 100%;
-            background: var(--BRIEFS-paper);
-            overflow-y: auto;
-            padding: 1rem;
+            max-height: 92vh;
           }
-          .briefs-collection__launcher--sidebar {
-            justify-content: flex-end;
+          .briefs-collection__toolbar {
+            gap: var(--bc-space-1) var(--bc-space-2);
           }
-          .briefs-collection__launcher--sidebar .briefs-collection__launcher-editor {
-            width: 50vw;
-            height: 100%;
-            background: var(--BRIEFS-paper);
-            overflow-y: auto;
-            padding: 1rem;
+          .briefs-collection__new-brief-button {
+            margin-left: 0;
+            flex-basis: 100%;
           }
-          @media (max-width: 640px) {
-            .briefs-collection__launcher--sidebar .briefs-collection__launcher-editor {
-              width: 100vw;
-            }
-          }
-          .briefs-collection__launcher-close {
-            position: absolute;
-            top: 0.5rem;
-            right: 0.5rem;
-            z-index: 1001;
-            font-family: var(--BRIEFS-font-mono);
-            background: var(--BRIEFS-paper-raised);
-            border: 1px solid var(--BRIEFS-rule);
-            border-radius: 4px;
-            padding: 0.3rem 0.6rem;
-            cursor: pointer;
-          }
-        `;
-        this.#head.appendChild(style);
+        }
+        .briefs-collection__launcher-close {
+          position: absolute;
+          top: 0.6rem;
+          right: 0.6rem;
+          z-index: 1001;
+          width: 28px;
+          height: 28px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-family: var(--BRIEFS-font-body);
+          font-size: 1.1rem;
+          line-height: 1;
+          color: var(--BRIEFS-ink-soft);
+          background: transparent;
+          border: none;
+          border-radius: 50%;
+          cursor: pointer;
+          transition: background 120ms ease, color 120ms ease;
+        }
+        .briefs-collection__launcher-close:hover {
+          background: var(--BRIEFS-paper-raised);
+          color: var(--BRIEFS-ink);
+        }
+      `;
+      this.#head.appendChild(style);
     }
   }
 }
