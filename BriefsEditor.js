@@ -55,15 +55,11 @@ export class BriefsEditor {
     assert.instanceOf(tagRegistry, TagRegistry, 'tagRegistry');
     assert.instanceOf(persistenceAdapter, PersistenceAdapter, 'persistenceAdapter');
     assert.instanceOf(initialPage, NotePage, 'initialPage');
-    
-    this.#appendPreconnect(styleContainer, 'https://fonts.googleapis.com', false);
-    this.#appendPreconnect(styleContainer, 'https://fonts.gstatic.com', true);
-    this.#appendStylesheet(styleContainer, 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap');
-    this.#appendStylesheet(styleContainer, './ui/styles.css');
 
     this.#typeRegistry = typeRegistry;
     this.#tagRegistry = tagRegistry;
     this.#persistenceAdapter = persistenceAdapter;
+    this.#persistenceAdapter.tagRegistry = tagRegistry;
     this.#page = initialPage;
     this.#focusedLineId = null;
     this.#saveTimer = null;
@@ -582,8 +578,8 @@ export class BriefsEditor {
       obj.initialPage ?? NotePage.fromObject({
         id: IdGenerator.generate('page'),
         name: obj.name,
-        date: obj.date,
-      })
+        date: obj.date
+      }, obj.tagRegistry)
     );
   }
 }

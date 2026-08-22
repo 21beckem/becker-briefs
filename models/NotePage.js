@@ -3,6 +3,7 @@ import { Tag } from './Tag.js';
 import { HeadingBlock } from './HeadingBlock.js';
 import { Bullet } from './Bullet.js';
 import { IdGenerator } from '../utils/IdGenerator.js';
+import { TagRegistry } from '../registries/TagRegistry.js';
 
 /**
  * NotePage
@@ -163,10 +164,12 @@ export class NotePage {
 
   /**
    * @param {object} obj
+   * @param {TagRegistry|null} tagRegistry
    * @returns {NotePage}
    */
-  static fromObject(obj) {
+  static fromObject(obj, tagRegistry = null) {
     assert.plainObject(obj, 'obj');
+    assert.instanceOfOrNull(tagRegistry, TagRegistry, 'tagRegistry');
     const rawContent = (obj.content ?? [{
       blockType: 'bullet',
       id: IdGenerator.generate('bullet'),
@@ -181,7 +184,7 @@ export class NotePage {
       obj.id,
       obj.name ?? null,
       new Date(obj.date ?? Date.now()),
-      (obj.tags ?? []).map((tag) => Tag.fromObject(tag)),
+      (obj.tags ?? []).map((tag) => Tag.fromObject(tag, tagRegistry)),
       content
     );
   }

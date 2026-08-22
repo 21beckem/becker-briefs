@@ -1,4 +1,5 @@
 import { assert } from '../utils/assert.js';
+import { TagRegistry } from '../registries/TagRegistry.js';
 
 /**
  * Tag
@@ -48,10 +49,18 @@ export class Tag {
 
   /**
    * @param {object} obj
+   * @param {TagRegistry|null} tagRegistry
    * @returns {Tag}
    */
-  static fromObject(obj) {
+  static fromObject(obj, tagRegistry = null) {
     assert.plainObject(obj, 'obj');
-    return new Tag(obj.id, obj.label, obj.color ?? null);
+    assert.nonEmptyString(obj.id, 'obj.id');
+    assert.instanceOfOrNull(tagRegistry, TagRegistry, 'tagRegistry');
+    const tagFromRegistry = tagRegistry?.get(obj.id);
+    return new Tag(
+      obj.id,
+      obj.label !== undefined ? obj.label : tagFromRegistry?.label ?? null,
+      obj.color !== undefined ? obj.color : tagFromRegistry?.color ?? null
+    );
   }
 }

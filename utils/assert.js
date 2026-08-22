@@ -131,6 +131,21 @@ export class assert {
 
   /**
    * @param {*} value
+   * @param {Function} Klass
+   * @param {string} name
+   */
+  static arrayOfStrings(value, name) {
+    assert.array(value, name);
+    value.forEach((item, index) => {
+      if (typeof item !== 'string')
+        throw new TypeError(
+          `${name}[${index}] must be a string.`
+        );
+    });
+  }
+
+  /**
+   * @param {*} value
    * @param {string} name
    */
   static function_(value, name) {
