@@ -3,6 +3,8 @@ import { QueryResponse } from './models/QueryResponse.js';
 import { BriefsEditor } from './BriefsEditor.js';
 import { MultiSelectOption } from './ui/MultiSelectOption.js';
 import { MultiSelectPopover } from './ui/MultiSelectPopover.js';
+import { SingleSelectOption } from './ui/SingleSelectOption.js';
+import { SingleSelectDropdown } from './ui/SingleSelectDropdown.js';
 import { assert } from './utils/assert.js';
 import { TypeRegistry } from './registries/TypeRegistry.js';
 import { TagRegistry } from './registries/TagRegistry.js';
@@ -20,7 +22,7 @@ export class BriefsCollection {
 
   static get briefLaunchModes() {
     return Object.freeze({
-      MODAL: 'modal',
+      MODAL: 'popup',
       FULLSCREEN: 'fullscreen',
       SIDEBAR: 'sidebar',
       USER_PREFERENCE: 'user-preference'
@@ -73,9 +75,9 @@ export class BriefsCollection {
   #toolbarNode;
   #searchInputNode;
   #layoutSwitcherNode;
-  #launchModeSwitcherNode;
   #resultsNode;
   #paginationNode;
+  #activeLaunchModeDropdown;
 
   constructor(
     container,
@@ -128,6 +130,7 @@ export class BriefsCollection {
     this.#activeEditor = null;
     this.#tagFilterPopover = null;
     this.#typeFilterPopover = null;
+    this.#activeLaunchModeDropdown = null;
 
     this.#effectiveLayout = this.#resolveEffectiveLayout();
     this.#effectiveLaunchMode = this.#resolveEffectiveLaunchMode();
@@ -250,11 +253,6 @@ export class BriefsCollection {
     if (this.#configuredLayout === BriefsCollection.layouts.USER_PREFERENCE) {
       this.#layoutSwitcherNode = this.#buildLayoutSwitcherNode();
       toolbar.appendChild(this.#layoutSwitcherNode);
-    }
-
-    if (this.#configuredLaunchMode === BriefsCollection.briefLaunchModes.USER_PREFERENCE) {
-      this.#launchModeSwitcherNode = this.#buildLaunchModeSwitcherNode();
-      toolbar.appendChild(this.#launchModeSwitcherNode);
     }
 
     if (this.#showNewBriefButton) {
@@ -413,34 +411,6 @@ export class BriefsCollection {
     if (this.#layoutSwitcherNode === undefined) return;
     for (const button of this.#layoutSwitcherNode.querySelectorAll('.briefs-collection__layout-button')) {
       button.setAttribute('aria-pressed', String(button.dataset.layout === this.#effectiveLayout));
-    }
-  }
-
-  #buildLaunchModeSwitcherNode() {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'briefs-collection__launch-mode-switcher';
-    for (const [key, value] of Object.entries(BriefsCollection.briefLaunchModes)) {
-      if (value === BriefsCollection.briefLaunchModes.USER_PREFERENCE) continue;
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'briefs-collection__launch-mode-button';
-      button.dataset.launchMode = value;
-      button.textContent = key.charAt(0) + key.slice(1).toLowerCase();
-      button.setAttribute('aria-pressed', String(this.#effectiveLaunchMode === value));
-      button.addEventListener('click', () => {
-        this.#effectiveLaunchMode = value;
-        this.#writePreference(BriefsCollection.#LAUNCH_MODE_STORAGE_KEY, value);
-        this.#updateLaunchModeButtonStates();
-      });
-      wrapper.appendChild(button);
-    }
-    return wrapper;
-  }
-
-  #updateLaunchModeButtonStates() {
-    if (this.#launchModeSwitcherNode === undefined) return;
-    for (const button of this.#launchModeSwitcherNode.querySelectorAll('.briefs-collection__launch-mode-button')) {
-      button.setAttribute('aria-pressed', String(button.dataset.launchMode === this.#effectiveLaunchMode));
     }
   }
 
@@ -783,27 +753,70 @@ export class BriefsCollection {
       overlay.appendChild(backdrop);
     }
 
+    const editorContainer = document.createElement('div');
+    editorContainer.className = 'briefs-collection__launcher-editor';
+    overlay.appendChild(editorContainer);
+
+    const controls = document.createElement('div');
+    controls.className = 'briefs-collection__launcher-controls';
+    editorContainer.appendChild(controls);
+
+    if (this.#configuredLaunchMode === BriefsCollection.briefLaunchModes.USER_PREFERENCE) {
+      const modeOptions = Object.entries(BriefsCollection.briefLaunchModes)
+        .filter(([, value]) => value !== BriefsCollection.briefLaunchModes.USER_PREFERENCE)
+        .map(([key, value]) => SingleSelectOption.fromObject({
+          id: value,
+          label: value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
+        }));
+
+      this.#activeLaunchModeDropdown = SingleSelectDropdown.fromObject({
+        options: modeOptions,
+        selectedId: mode,
+        onChange: (newMode) => {
+          this.#effectiveLaunchMode = newMode;
+          this.#writePreference(BriefsCollection.#LAUNCH_MODE_STORAGE_KEY, newMode);
+          this.#applyLauncherMode(newMode);
+        }
+      });
+      controls.appendChild(this.#activeLaunchModeDropdown.node);
+    }
+
     const closeButton = document.createElement('button');
     closeButton.type = 'button';
     closeButton.className = 'briefs-collection__launcher-close';
     closeButton.setAttribute('aria-label', 'Close');
     closeButton.textContent = '×';
     closeButton.addEventListener('click', () => this.#closeBrief());
-    overlay.appendChild(closeButton);
-
-    const editorContainer = document.createElement('div');
-    editorContainer.className = 'briefs-collection__launcher-editor';
-    overlay.appendChild(editorContainer);
+    controls.appendChild(closeButton);
 
     return { node: overlay, editorContainer };
   }
 
+  #applyLauncherMode(newMode) {
+    if (this.#activeLauncherNode === null) return;
+    this.#activeLauncherNode.className = `briefs-collection__launcher briefs-collection__launcher--${newMode}`;
+
+    const existingBackdrop = this.#activeLauncherNode.querySelector('.briefs-collection__launcher-backdrop');
+    const needsBackdrop = newMode === BriefsCollection.briefLaunchModes.MODAL;
+
+    if (needsBackdrop && existingBackdrop === null) {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'briefs-collection__launcher-backdrop';
+      backdrop.addEventListener('click', () => this.#closeBrief());
+      this.#activeLauncherNode.insertBefore(backdrop, this.#activeLauncherNode.firstChild);
+    } else if (!needsBackdrop && existingBackdrop !== null) {
+      existingBackdrop.remove();
+    }
+  }
+
   #closeBrief() {
     if (this.#activeLauncherNode === null) return;
-    if (this.#activeEditor !== null && typeof this.#activeEditor.destroy === 'function') {
+    if (this.#activeEditor !== null && typeof this.#activeEditor.destroy === 'function')
       this.#activeEditor.destroy();
-    }
+    if (this.#activeLaunchModeDropdown !== null)
+      this.#activeLaunchModeDropdown.destroy();
     this.#activeEditor = null;
+    this.#activeLaunchModeDropdown = null;
     this.#activeLauncherNode.remove();
     this.#activeLauncherNode = null;
   }
@@ -879,11 +892,11 @@ export class BriefsCollection {
           gap: var(--bc-space-2) var(--bc-space-3);
           padding-bottom: var(--bc-space-2);
           border-bottom: 1px solid var(--BRIEFS-rule);
-          padding-top: var(--bc-space-2);
-        }
-        .briefs-collection__results {
-          flex: 1 1 auto;
-          overflow: auto;
+            padding-top: var(--bc-space-2);
+          }
+          .briefs-collection__results {
+            flex: 1 1 auto;
+            overflow: auto;
         }
         .briefs-collection__search {
           display: flex;
@@ -915,8 +928,7 @@ export class BriefsCollection {
         }
         .briefs-collection__filters,
         .briefs-collection__sort,
-        .briefs-collection__layout-switcher,
-        .briefs-collection__launch-mode-switcher {
+        .briefs-collection__layout-switcher {
           display: flex;
           align-items: center;
           gap: var(--bc-space-1);
@@ -927,7 +939,6 @@ export class BriefsCollection {
         .briefs-collection__sort-by,
         .briefs-collection__sort-direction,
         .briefs-collection__layout-button,
-        .briefs-collection__launch-mode-button,
         .briefs-collection__page-button {
           font-family: var(--BRIEFS-font-mono);
           font-size: var(--bc-label);
@@ -944,7 +955,6 @@ export class BriefsCollection {
         .briefs-collection__search-submit:hover,
         .briefs-collection__sort-direction:hover,
         .briefs-collection__layout-button:hover,
-        .briefs-collection__launch-mode-button:hover,
         .briefs-collection__page-button:hover:not(:disabled) {
           background: var(--BRIEFS-paper-raised);
           color: var(--BRIEFS-ink);
@@ -967,8 +977,7 @@ export class BriefsCollection {
           background-size: 4px 4px, 4px 4px;
           background-repeat: no-repeat;
         }
-        .briefs-collection__layout-button[aria-pressed='true'],
-        .briefs-collection__launch-mode-button[aria-pressed='true'] {
+        .briefs-collection__layout-button[aria-pressed='true'] {
           background: var(--BRIEFS-paper-raised);
           color: var(--BRIEFS-structural);
           border-color: var(--BRIEFS-structural-soft);
@@ -1239,7 +1248,7 @@ export class BriefsCollection {
           justify-content: center;
           gap: var(--bc-space-3);
           padding-top: var(--bc-space-1);
-          padding-bottom: var(--bc-space-4);
+            padding-bottom: var(--bc-space-4);
         }
         .briefs-collection__page-label {
           font-family: var(--BRIEFS-font-mono);
@@ -1263,12 +1272,12 @@ export class BriefsCollection {
           background: rgba(32, 38, 43, 0.4);
           backdrop-filter: blur(1.5px);
         }
-        .briefs-collection__launcher--modal {
+        .briefs-collection__launcher--popup {
           align-items: center;
           justify-content: center;
           padding: var(--bc-space-3);
         }
-        .briefs-collection__launcher--modal .briefs-collection__launcher-editor {
+        .briefs-collection__launcher--popup .briefs-collection__launcher-editor {
           position: relative;
           width: min(92vw, 720px);
           max-height: 85vh;
@@ -1302,7 +1311,7 @@ export class BriefsCollection {
           .briefs-collection__launcher--sidebar .briefs-collection__launcher-editor {
             width: 100vw;
           }
-          .briefs-collection__launcher--modal .briefs-collection__launcher-editor {
+          .briefs-collection__launcher--popup .briefs-collection__launcher-editor {
             width: 100%;
             max-height: 92vh;
           }
@@ -1314,11 +1323,16 @@ export class BriefsCollection {
             flex-basis: 100%;
           }
         }
-        .briefs-collection__launcher-close {
+        .briefs-collection__launcher-controls {
           position: absolute;
           top: 0.6rem;
           right: 0.6rem;
           z-index: 1001;
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+        }
+        .briefs-collection__launcher-close {
           width: 28px;
           height: 28px;
           display: inline-flex;
@@ -1337,6 +1351,69 @@ export class BriefsCollection {
         .briefs-collection__launcher-close:hover {
           background: var(--BRIEFS-paper-raised);
           color: var(--BRIEFS-ink);
+        }
+
+        /* ---- single-select dropdown (launch-mode picker) ---- */
+        .briefs-dropdown {
+          position: relative;
+        }
+        .briefs-dropdown__trigger {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          font-family: var(--BRIEFS-font-mono);
+          font-size: 0.6rem;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: var(--BRIEFS-ink-soft);
+          background: var(--BRIEFS-paper-raised);
+          border: 1px solid var(--BRIEFS-rule);
+          border-radius: var(--bc-radius);
+          padding: 0.35rem 0.6rem;
+          cursor: pointer;
+          transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+        }
+        .briefs-dropdown__trigger:hover {
+          background: var(--BRIEFS-paper);
+          color: var(--BRIEFS-ink);
+        }
+        .briefs-dropdown__chevron {
+          font-size: 0.7rem;
+          opacity: 0.7;
+          transform: translateY(-0.4em);
+        }
+        .briefs-dropdown__panel {
+          position: absolute;
+          top: calc(100% + 0.4rem);
+          right: 0;
+          z-index: 20;
+          min-width: 140px;
+          background: var(--BRIEFS-paper-raised);
+          border: 1px solid var(--BRIEFS-rule);
+          border-radius: var(--bc-radius);
+          box-shadow: 0 8px 24px rgba(32, 38, 43, 0.1);
+          padding: 0.3rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.1rem;
+        }
+        .briefs-dropdown__option {
+          text-align: left;
+          font-family: var(--BRIEFS-font-body);
+          font-size: 0.85rem;
+          color: var(--BRIEFS-ink);
+          background: transparent;
+          border: none;
+          border-radius: 4px;
+          padding: 0.35rem 0.5rem;
+          cursor: pointer;
+        }
+        .briefs-dropdown__option:hover {
+          background: var(--BRIEFS-paper);
+        }
+        .briefs-dropdown__option--selected {
+          color: var(--BRIEFS-structural);
+          font-weight: 600;
         }
       `;
       this.#head.appendChild(style);

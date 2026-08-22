@@ -14,7 +14,7 @@ export class SingleSelectDropdown {
   #panelNode;
 
   constructor(options, selectedId, onChange) {
-    assert.arrayOf(options, 'options', SingleSelectOption);
+    assert.arrayOf(options, SingleSelectOption, 'options');
     assert.string(selectedId, 'selectedId');
     assert.function_(onChange, 'onChange');
     if (!options.some((option) => option.id === selectedId))
@@ -75,7 +75,7 @@ export class SingleSelectDropdown {
 
     this.#panelNode = document.createElement('div');
     this.#panelNode.className = 'briefs-dropdown__panel';
-    this.#panelNode.hidden = true;
+    this.#panelNode.style.display = 'none';
     wrapper.appendChild(this.#panelNode);
 
     this.#renderOptions();
@@ -110,13 +110,13 @@ export class SingleSelectDropdown {
 
   #open() {
     this.#isOpen = true;
-    this.#panelNode.hidden = false;
+    this.#panelNode.style.display = 'block';
     window.setTimeout(() => document.addEventListener('mousedown', this.#outsideClickHandler), 0);
   }
 
   #close() {
     this.#isOpen = false;
-    this.#panelNode.hidden = true;
+    this.#panelNode.style.display = 'none';
     document.removeEventListener('mousedown', this.#outsideClickHandler);
   }
 }
